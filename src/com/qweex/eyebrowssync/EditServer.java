@@ -29,6 +29,7 @@ public class EditServer extends Activity implements DirectoryChooserDialog.OnDir
                 //auth (username, password)
                 ((EditText)findViewById(R.id.foreign_path)).setText(b.getString("foreign_path"));
                 ((Button)findViewById(R.id.local_path)).setText(b.getString("local_path"));
+                ((EditText)findViewById(R.id.mask)).setText(b.getString("mask"));
             }
         }
 
@@ -62,6 +63,7 @@ public class EditServer extends Activity implements DirectoryChooserDialog.OnDir
             //auth (username, password)
             b.putString("foreign_path", ((EditText)findViewById(R.id.foreign_path)).getText().toString());
             b.putString("local_path", ((Button)findViewById(R.id.local_path)).getText().toString());
+            b.putString("mask", ((EditText)findViewById(R.id.mask)).getText().toString());
 
             if(nameWas==null)
                 SavedServers.add(EditServer.this, b);

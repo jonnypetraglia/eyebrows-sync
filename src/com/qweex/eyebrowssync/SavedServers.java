@@ -62,6 +62,8 @@ public class SavedServers {
             b.putBoolean("ssl", c.getInt(c.getColumnIndex("ssl"))>0);
             b.putString("foreign_path", c.getString(c.getColumnIndex("foreign_path")));
             b.putString("local_path", c.getString(c.getColumnIndex("local_path")));
+            b.putString("mask", c.getString(c.getColumnIndex("mask")));
+            b.putLong("last_updated", c.getLong(c.getColumnIndex("last_updated")));
 
             String auth = c.getString(c.getColumnIndex("auth"));
             if(auth!=null && auth.length()>0) {
@@ -72,8 +74,6 @@ public class SavedServers {
                 else
                     b.putString("auth", auth);
             }
-
-            b.putLong("last_updated", c.getLong(c.getColumnIndex("last_updated")));
 
         } catch(InvalidKeyException e) {
             e.printStackTrace();
@@ -115,6 +115,7 @@ public class SavedServers {
             }
             newFav.put("foreign_path", values.getString("foreign_path"));
             newFav.put("local_path", values.getString("local_path"));
+            newFav.put("mask", values.getString("mask"));
             return database.insert(DATABASE_TABLE, null, newFav)!=-1 && close();
         } catch(Exception e) {
             e.printStackTrace();
@@ -141,6 +142,10 @@ public class SavedServers {
                 newFav.put("foreign_path", values.getString("foreign_path"));
             if(values.containsKey("local_path"))
                 newFav.put("local_path", values.getString("local_path"));
+            if(values.containsKey("last_updated"))
+                newFav.put("last_updated", values.getLong("last_updated"));
+            if(values.containsKey("mask"))
+                newFav.put("mask", values.getString("mask"));
 
             if(values.containsKey("auth")) {
                 if(UserConfig.hasMasterPass(c))
@@ -150,9 +155,6 @@ public class SavedServers {
                 else
                     newFav.put("auth", values.getString("auth"));
             }
-
-            if(values.containsKey("last_updated"))
-                newFav.put("last_updated", values.getLong("last_updated"));
 
 
             return database.update(DATABASE_TABLE, newFav, "name=?", new String[]{ oldname})>0;

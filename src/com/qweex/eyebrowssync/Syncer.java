@@ -21,6 +21,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Syncer extends AsyncTask<String, Void, Exception> {
     ArrayList<String> filesToDownload;
@@ -33,12 +35,15 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
     PHASE phase = PHASE.PREPARING;
     Exception failure;
     StatusTextView statusView;
+    Pattern maskPattern;
 
     public Syncer(Context context, String name) {
         server = SavedServers.get(context, name);
         filesToDownload = new ArrayList<String>();
         filesToDelete = new ArrayList<String>();
         this.context = context;
+        if(server.getString("mask").length()>0)
+            maskPattern = Pattern.compile(server.getString("mask"));
     }
 
     @Override
@@ -115,14 +120,11 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             onProgressUpdate();
             return;
         }
-        //TODO: get current timestamp & update it in the DB
         long time = System.currentTimeMillis();
         Bundle b = new Bundle();
         b.putLong("last_updated", time);
-        Log.d("EyebrowsSync", "Updating " + server.getString("name") + " to: " + time);
         SavedServers.update(context, server.getString("name"), b);
         String current_time = DateUtils.getRelativeDateTimeString(context, time, DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, 0).toString();
-        // SavedServers.update(name, ...)
         if(statusView!=null) {
             statusView.setText(current_time);
             statusView.setTextColor(context.getResources().getColor(R.color.status_inactive));
@@ -158,6 +160,11 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
                 foreignDirs.add(foreignFile.getString("name"));
                 localFiles.remove(foreignFile.getString("name"));
                 continue;
+            }
+            if(maskPattern!=null) {
+                Matcher m = maskPattern.matcher(foreignFile.getString("name"));
+                if(!m.matches())
+                    continue;
             }
 
             if(localFiles.contains(foreignFile.getString("name"))) {
