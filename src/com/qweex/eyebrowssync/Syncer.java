@@ -1,6 +1,8 @@
 package com.qweex.eyebrowssync;
 
 import android.content.Context;
+import android.content.Intent;
+import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -36,6 +38,9 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
     Exception failure;
     StatusTextView statusView;
     Pattern maskPattern;
+    String[] bouncingBall = new String[] {"(O o o)", "(o O o)", "(o o O)", "(o O o)"};
+    int bouncingIndex = 0;
+    int bouncingRate = 4; //Higher == Slower
 
     public Syncer(Context context, String name) {
         server = SavedServers.get(context, name);
@@ -52,15 +57,15 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             return;
         switch(phase) {
             case COUNTING:
-                statusView.setText("Changes: +" + filesToDownload.size() + "/-" + filesToDelete.size());
+                statusView.setText(bouncingBall[bouncingIndex/bouncingRate] + " Changes: +" + filesToDownload.size() + "/-" + filesToDelete.size());
                 statusView.setTextColor(context.getResources().getColor(R.color.status_preparing));
                 break;
             case DOWNLOADING:
-                statusView.setText("Downloading: " + (totalDownloads-filesToDownload.size()) + "/" + totalDownloads);
+                statusView.setText(bouncingBall[bouncingIndex/bouncingRate] + " Downloading: " + (totalDownloads-filesToDownload.size()) + "/" + totalDownloads);
                 statusView.setTextColor(context.getResources().getColor(R.color.status_running));
                 break;
             case DELETING:
-                statusView.setText("Deleting: " + (totalDeletes-filesToDelete.size()) + "/" + totalDeletes);
+                statusView.setText(bouncingBall[bouncingIndex/bouncingRate] + " Deleting: " + (totalDeletes-filesToDelete.size()) + "/" + totalDeletes);
                 statusView.setTextColor(context.getResources().getColor(R.color.status_running));
                 break;
             case ERROR:
@@ -68,7 +73,7 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
                 statusView.setTextColor(context.getResources().getColor(R.color.status_error));
                 break;
         }
-
+        bouncingIndex = (bouncingIndex+1) % (bouncingBall.length*bouncingRate);
     }
 
 
@@ -87,7 +92,6 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             while(!filesToDownload.isEmpty()) {
                 String foreignPath = filesToDownload.remove(0);
                 File localTarget = new File(localSubdir, foreignPath);
-                publishProgress();
                 downloadFile(getServerPath(foreignPath), localTarget);
             }
 
@@ -120,6 +124,9 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             onProgressUpdate();
             return;
         }
+
+        MediaScannerConnection.scanFile(context, new String[]{server.getString("local_path")}, null, null);
+
         long time = System.currentTimeMillis();
         Bundle b = new Bundle();
         b.putLong("last_updated", time);
@@ -205,8 +212,12 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
 
         byte[] buffer = new byte[1024];
         int bufferLength = 0;
+        int bucket = 0;
 
         while ( (bufferLength = inputStream.read(buffer)) > 0 ) {
+            bucket += bufferLength;
+            if(bucket>1024)
+                publishProgress();
             fileOutput.write(buffer, 0, bufferLength);
         }
         fileOutput.close();
