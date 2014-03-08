@@ -1,7 +1,6 @@
 package com.qweex.eyebrowssync;
 
 import android.content.Context;
-import android.content.Intent;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -99,8 +98,15 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             phase = PHASE.DELETING;
             totalDeletes = filesToDelete.size();
             Log.d("EyebrowsSync", "FilesToDelete: ");
-            for(String f : filesToDelete)
-                Log.d("EyebrowsSync", "--Deleting: " + f);
+
+            while(!filesToDelete.isEmpty()) {
+                String f = filesToDelete.remove(0);
+                File localTarget = new File(localSubdir, f);
+                boolean r = DeleteRecursive(localTarget);
+                if(localTarget.exists() && r)
+                    MediaScannerConnection.scanFile(context, new String[]{localTarget.getPath()}, null, null);
+                Log.d("EyebrowsSync", "---Deleting? " + r);
+            }
 
         } catch (EyebrowsError eyebrowsError) {
             //TODO
@@ -116,6 +122,16 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
         return null;
     }
 
+    boolean DeleteRecursive(File fileOrDirectory) {
+        boolean res = true;
+        if(fileOrDirectory.isDirectory())
+            for(File child : fileOrDirectory.listFiles())
+                res &= DeleteRecursive(child);
+
+        Log.d("EyebrowsSync", "--Deleting: " + fileOrDirectory);
+        return res && fileOrDirectory.delete();
+    }
+
     @Override
     protected void onPostExecute(Exception e) {
         failure = e;
@@ -124,8 +140,6 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             onProgressUpdate();
             return;
         }
-
-        MediaScannerConnection.scanFile(context, new String[]{server.getString("local_path")}, null, null);
 
         long time = System.currentTimeMillis();
         Bundle b = new Bundle();
@@ -213,13 +227,17 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
         byte[] buffer = new byte[1024];
         int bufferLength = 0;
         int bucket = 0;
+        int updateInterval = 1024*1024; //Bigger == less often
 
         while ( (bufferLength = inputStream.read(buffer)) > 0 ) {
             bucket += bufferLength;
-            if(bucket>1024)
+            if(bucket>updateInterval) {
+                bucket = bucket % updateInterval;
                 publishProgress();
+            }
             fileOutput.write(buffer, 0, bufferLength);
         }
+        MediaScannerConnection.scanFile(context, new String[]{target.getPath()}, null, null);
         fileOutput.close();
     }
 
