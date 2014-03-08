@@ -3,5 +3,6 @@
     <color name="status_inactive">#777777</color>
     <color name="status_preparing">#333333</color>
     <color name="status_running">#99cc00</color>
+    <color name="status_error">#cc0000</color>
     <color name="qweex">#99cc00</color>
 </resources>

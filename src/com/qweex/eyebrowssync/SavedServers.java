@@ -73,6 +73,8 @@ public class SavedServers {
                     b.putString("auth", auth);
             }
 
+            b.putLong("last_updated", c.getLong(c.getColumnIndex("last_updated")));
+
         } catch(InvalidKeyException e) {
             e.printStackTrace();
         } catch (IllegalBlockSizeException e) {
@@ -125,12 +127,10 @@ public class SavedServers {
     public static synchronized boolean update(Context c, String oldname, Bundle values) {
         try {
             open();
-            String name=values.getString("name");
-            if(name.length()==0)
-                throw new Exception();
             ContentValues newFav = new ContentValues();
-            newFav.put("name", name);
 
+            if(values.containsKey("name"))
+                newFav.put("name", values.getString("name"));
             if(values.containsKey("host"))
                 newFav.put("host", values.getString("host"));
             if(values.containsKey("port"))
@@ -150,6 +150,9 @@ public class SavedServers {
                 else
                     newFav.put("auth", values.getString("auth"));
             }
+
+            if(values.containsKey("last_updated"))
+                newFav.put("last_updated", values.getLong("last_updated"));
 
 
             return database.update(DATABASE_TABLE, newFav, "name=?", new String[]{ oldname})>0;

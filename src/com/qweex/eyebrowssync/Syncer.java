@@ -1,14 +1,12 @@
 package com.qweex.eyebrowssync;
 
-import android.app.DownloadManager;
-import android.content.res.Resources;
+import android.content.Context;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.text.format.DateUtils;
 import android.util.Log;
-import android.widget.TextView;
-import android.widget.Toast;
 import com.qweex.eyebrows.EyebrowsError;
 import com.qweex.eyebrows.did_not_write.JSONDownloader;
 import org.json.JSONArray;
@@ -16,7 +14,11 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,37 +28,40 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
     ArrayList<String> filesToDelete;
     int totalDeletes;
     Bundle server;
-    Resources resources;
-    enum PHASE {COUNTING, DOWNLOADING, DELETING, ERROR}
-    PHASE phase;
+    Context context;
+    enum PHASE {PREPARING, COUNTING, DOWNLOADING, DELETING, ERROR}
+    PHASE phase = PHASE.PREPARING;
     Exception failure;
+    StatusTextView statusView;
 
-    public Syncer(String name, TextView statusView) {
-        this.statusView = statusView;
-        server = SavedServers.get(statusView.getContext(), name);
+    public Syncer(Context context, String name) {
+        server = SavedServers.get(context, name);
         filesToDownload = new ArrayList<String>();
         filesToDelete = new ArrayList<String>();
-    }
-
-    @Override
-    protected void onPreExecute() {
+        this.context = context;
     }
 
     @Override
     protected void onProgressUpdate(Void... voids) {
+        if(statusView==null)
+            return;
         switch(phase) {
             case COUNTING:
                 statusView.setText("Changes: +" + filesToDownload.size() + "/-" + filesToDelete.size());
-                statusView.setTextColor(resources.getColor(R.color.status_preparing));
+                statusView.setTextColor(context.getResources().getColor(R.color.status_preparing));
                 break;
             case DOWNLOADING:
-                statusView.setText("Downloading: " + filesToDownload.size() + "/" + totalDownloads);
-                statusView.setTextColor(resources.getColor(R.color.status_running));
+                statusView.setText("Downloading: " + (totalDownloads-filesToDownload.size()) + "/" + totalDownloads);
+                statusView.setTextColor(context.getResources().getColor(R.color.status_running));
+                break;
             case DELETING:
-                statusView.setText("Deleting: " + filesToDelete.size() + "/" + totalDeletes);
-                //statusView.setTextColor(resources.getColor(R.color.status_running));
+                statusView.setText("Deleting: " + (totalDeletes-filesToDelete.size()) + "/" + totalDeletes);
+                statusView.setTextColor(context.getResources().getColor(R.color.status_running));
+                break;
             case ERROR:
                 statusView.setText("Error: " + failure);
+                statusView.setTextColor(context.getResources().getColor(R.color.status_error));
+                break;
         }
 
     }
@@ -64,10 +69,30 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
 
     @Override
     protected Exception doInBackground(String... params) {
-        //1. Build list of all files needing to be downloaded (and deleted)
-        phase = PHASE.COUNTING;
         try {
+            //1. Build list of all files needing to be downloaded (and deleted)
+            phase = PHASE.COUNTING;
             tallyFolder("");
+
+
+            //2. Do the actual downloading
+            phase = PHASE.DOWNLOADING;
+            totalDownloads = filesToDownload.size();
+            File localSubdir = new File(server.getString("local_path"));
+            while(!filesToDownload.isEmpty()) {
+                String foreignPath = filesToDownload.remove(0);
+                File localTarget = new File(localSubdir, foreignPath);
+                publishProgress();
+                downloadFile(getServerPath(foreignPath), localTarget);
+            }
+
+            //3. Do the deleting
+            phase = PHASE.DELETING;
+            totalDeletes = filesToDelete.size();
+            Log.d("EyebrowsSync", "FilesToDelete: ");
+            for(String f : filesToDelete)
+                Log.d("EyebrowsSync", "--Deleting: " + f);
+
         } catch (EyebrowsError eyebrowsError) {
             //TODO
             eyebrowsError.printStackTrace();
@@ -79,32 +104,6 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             e.printStackTrace();
             return e;
         }
-
-        //2. Do the actual downloading
-        phase = PHASE.DOWNLOADING;
-        totalDownloads = filesToDownload.size();
-        File localSubdir = new File(server.getString("local_path"));
-        for(String foreignPath : filesToDownload) {
-            File localTarget = new File(localSubdir, foreignPath);
-            Log.d("EyebrowsSync", "++Downloading: " + foreignPath + " -> " + localTarget);
-
-            Uri downloadUri = Uri.parse(getServerURI() + foreignPath);
-            DownloadManager.Request request = new DownloadManager.Request(downloadUri);
-            request.addRequestHeader("Authorization", "Basic " + server.getString("auth"));
-            request.setDestinationUri(Uri.parse(localTarget.getAbsolutePath()));
-            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_HIDDEN);
-            request.setVisibleInDownloadsUi(false);
-            request.allowScanningByMediaScanner();
-            //request.setTitle(filename);
-            ServerList.downloadManager.enqueue(request);
-        }
-
-        //3. Do the deleting
-        phase = PHASE.DELETING;
-        totalDeletes = filesToDelete.size();
-        Log.d("EyebrowsSync", "FilesToDelete: ");
-        for(String f : filesToDelete)
-            Log.d("EyebrowsSync", "--Deleting: " + f);
         return null;
     }
 
@@ -112,14 +111,24 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
     protected void onPostExecute(Exception e) {
         failure = e;
         if(failure!=null) {
+            phase = PHASE.ERROR;
             onProgressUpdate();
             return;
         }
         //TODO: get current timestamp & update it in the DB
-        String current_time = "NOW";
+        long time = System.currentTimeMillis();
+        Bundle b = new Bundle();
+        b.putLong("last_updated", time);
+        Log.d("EyebrowsSync", "Updating " + server.getString("name") + " to: " + time);
+        SavedServers.update(context, server.getString("name"), b);
+        String current_time = DateUtils.getRelativeDateTimeString(context, time, DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, 0).toString();
         // SavedServers.update(name, ...)
-        statusView.setText(current_time);
-        statusView.setTextColor(resources.getColor(R.color.status_inactive));
+        if(statusView!=null) {
+            statusView.setText(current_time);
+            statusView.setTextColor(context.getResources().getColor(R.color.status_inactive));
+            statusView.attachTo(null);
+        }
+        ServerList.syncers.remove(server.getString("name"));
     }
 
     void tallyFolder(String subfolder) throws EyebrowsError, IOException, JSONException {
@@ -136,12 +145,7 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
 
         //2. Make JSON request & get file list
         JSONArray foreignFilesJSON;
-        String path_to_load;
-        if(subfolder.length()==0)
-            path_to_load = server.getString("foreign_path");
-        else
-            path_to_load = TextUtils.join("/", new String[]{server.getString("foreign_path"), subfolder});
-        path_to_load = getServerURI() + Uri.encode(path_to_load);
+        String path_to_load = getServerPath(subfolder);
         if(server.getBoolean("ssl"))
             foreignFilesJSON = (JSONArray) (new JSONDownloader().new https()).readJsonFromUrl(server.getString("auth"), path_to_load, null);
         else
@@ -157,11 +161,12 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             }
 
             if(localFiles.contains(foreignFile.getString("name"))) {
-                File localFile = new File(localSubdir, foreignFile.getString("name"));
+                //File localFile = new File(localSubdir, foreignFile.getString("name"));
                 Log.i("EyebrowsSync", "Examining: " + foreignFile.getString("name"));
-                Log.d("EyebrowsSync", foreignFile.getLong("mtime") + " vs " + localFile.lastModified());
-                if(localFile.lastModified() < foreignFile.getLong("mtime"))
-                    filesToDownload.add(subfolder + "/" + foreignFile.getString("name"));
+                //Log.d("EyebrowsSync", foreignFile.getLong("mtime") + " vs " + localFile.lastModified());
+                Log.d("EyebrowsSync", foreignFile.getLong("mtime") + " vs " + server.getLong("last_updated")/1000);
+                if(server.getLong("last_updated")/1000 < foreignFile.getLong("mtime"))
+                    filesToDownload.add(joinAppend(subfolder, foreignFile.getString("name")));
                 localFiles.remove(foreignFile.getString("name"));
             } else
                 filesToDownload.add(joinAppend(subfolder, foreignFile.getString("name")));
@@ -170,7 +175,6 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
         //4. foreach file stil lin local_files
         for(String localFile : localFiles)
             filesToDelete.add(joinAppend(subfolder, localFile));
-
         publishProgress();
 
         //5. foreach subfolder in foreign_files
@@ -178,11 +182,38 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             tallyFolder(joinAppend(subfolder, foreignDir));
     }
 
-    String getServerURI()
-    {
+    void downloadFile(String url, File target) throws IOException {
+        Log.d("EyebrowsSync", "++Downloading: " + url + " -> " + target);
 
+        HttpURLConnection urlConnection = (HttpURLConnection) new URL(url).openConnection();
+        urlConnection.setRequestMethod("GET");
+        urlConnection.setRequestProperty("Authentication", "Basic " + server.getString("auth"));
+        urlConnection.setUseCaches(false);
+        urlConnection.setDoOutput(false);
+        urlConnection.connect();
+
+        InputStream inputStream = urlConnection.getInputStream();
+        target.getParentFile().mkdirs();
+        FileOutputStream fileOutput = new FileOutputStream(target);
+
+        byte[] buffer = new byte[1024];
+        int bufferLength = 0;
+
+        while ( (bufferLength = inputStream.read(buffer)) > 0 ) {
+            fileOutput.write(buffer, 0, bufferLength);
+        }
+        fileOutput.close();
+    }
+
+    String getServerPath(String subfolder)
+    {
+        String thing;
+        if(subfolder.length()==0)
+            thing = Uri.encode(server.getString("foreign_path"));
+        else
+            thing = Uri.encode(TextUtils.join("/", new String[]{server.getString("foreign_path"), subfolder}));
         return (server.getBoolean("ssl") ? "https://" : "http://") +
-                server.getString("host") + ":" + server.getInt("port") + "/";
+                server.getString("host") + ":" + server.getInt("port") + "/" + thing;
     }
 
 
@@ -192,10 +223,8 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
         return TextUtils.join("/", new String[]{subfolder, thingToAppend});
     }
 
-    TextView statusView;
-
-    public void setStatusView(TextView view) {
+    public void setStatusView(StatusTextView view) {
         statusView = view;
-        statusView.setText("Running"); //TODO: Green
+        onProgressUpdate();
     }
 }

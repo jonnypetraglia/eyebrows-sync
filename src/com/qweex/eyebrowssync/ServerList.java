@@ -1,13 +1,13 @@
 package com.qweex.eyebrowssync;
 
 import android.app.AlertDialog;
-import android.app.DownloadManager;
 import android.app.ListActivity;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
 import android.os.Bundle;
+import android.text.format.DateUtils;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -21,7 +21,6 @@ public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClic
     String nameOfClicked() { return ((TextView)rowClicked.findViewById(R.id.title)).getText().toString(); }
 
     static HashMap<String, Syncer> syncers;
-    static DownloadManager downloadManager;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -38,8 +37,6 @@ public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClic
 
         if(syncers == null)
             syncers = new HashMap<String, Syncer>();
-        if(downloadManager==null)
-            downloadManager = (DownloadManager)getSystemService(DOWNLOAD_SERVICE);
     }
 
     @Override
@@ -84,8 +81,9 @@ public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClic
 
         switch(item.getItemId()) {
             case R.id.run:
-                TextView statusView = (TextView) rowClicked.findViewById(R.id.status);
-                Syncer newSyncer = new Syncer(nameOfClicked(), statusView);
+                StatusTextView statusView = (StatusTextView) rowClicked.findViewById(R.id.status);
+                Syncer newSyncer = new Syncer(this, nameOfClicked());
+                statusView.attachTo(newSyncer);
                 newSyncer.execute();
                 syncers.put(nameOfClicked(), newSyncer);
                 break;
@@ -146,11 +144,17 @@ public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClic
 
 
             String name = ((TextView)v.findViewById(R.id.title)).getText().toString();
-            TextView statusView = (TextView) v.findViewById(R.id.status);
+            StatusTextView statusView = (StatusTextView) v.findViewById(R.id.status);
             if(syncers.get(name)!=null)
                 syncers.get(name).setStatusView(statusView);
             else if(statusView.getText().toString().length()==0)
                 statusView.setText("(Never run)");
+            else {
+                long time = Long.parseLong(statusView.getText().toString());
+                statusView.setText(
+                        DateUtils.getRelativeDateTimeString(v.getContext(), time, DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, 0)
+                );
+            }
             return v;
         }
     }

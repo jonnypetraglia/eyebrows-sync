@@ -15,7 +15,7 @@
             android:layout_alignParentTop="true"
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
-    <TextView
+    <com.qweex.eyebrowssync.StatusTextView
             android:id="@+id/status"
             android:text="Status"
             android:textSize="15dp"
