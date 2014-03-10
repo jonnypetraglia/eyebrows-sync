@@ -7,7 +7,6 @@
 
     <TextView
             android:id="@+id/title"
-            android:text="Title"
             android:textSize="20dp"
             android:textColor="@android:color/black"
             android:layout_alignParentLeft="true"
@@ -16,7 +15,6 @@
             android:layout_height="wrap_content" />
     <TextView
             android:id="@+id/status"
-            android:text="Status"
             android:textSize="15dp"
             android:textColor="@color/status_inactive"
             android:layout_below="@id/title"

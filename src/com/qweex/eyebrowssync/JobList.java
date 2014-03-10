@@ -7,10 +7,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
 import android.os.Bundle;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.View;
-import android.view.ViewGroup;
+import android.view.*;
 import android.widget.*;
 
 import java.util.HashMap;
@@ -41,11 +38,7 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
     @Override
     public void onResume() {
         super.onResume();
-        CursorAdapter cursorAdapter = new SimplishCursorAdapter(this,
-                R.layout.server_item,
-                SavedJobs.getAll(),
-                new String[] {"name", "last_updated"},
-                new int[] { R.id.title, R.id.status});
+        CursorAdapter cursorAdapter = new SimplishCursorAdapter(this, SavedJobs.getAll());
         setListAdapter(cursorAdapter);
     }
 
@@ -145,34 +138,37 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
         }
     };
 
-    class SimplishCursorAdapter extends SimpleCursorAdapter {
+    class SimplishCursorAdapter extends CursorAdapter {
+        private LayoutInflater mLayoutInflater;
+        private Context mContext;
 
-        public SimplishCursorAdapter(Context context, int layout, Cursor c, String[] from, int[] to) {
-            super(context, layout, c, from, to);
-        }
-
-        public SimplishCursorAdapter(Context context, int layout, Cursor c, String[] from, int[] to, int flags) {
-            super(context, layout, c, from, to, flags);
+        public SimplishCursorAdapter(Context context, Cursor c) {
+            super(context, c);
+            this.mContext = context;
+            this.mLayoutInflater = LayoutInflater.from(context);
         }
 
         @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            boolean setListener = convertView == null;
-            View v = super.getView(position, convertView, parent);
+        public View newView(Context context, Cursor cursor, ViewGroup parent) {
+            View v = mLayoutInflater.inflate(R.layout.server_item, parent, false);
+            v.findViewById(R.id.button).setOnClickListener(showPopup);
+            return v;
+        }
 
-            if(setListener)
-                v.findViewById(R.id.button).setOnClickListener(showPopup);
+        @Override
+        public void bindView(View v, Context context, Cursor c) {
+            String name = c.getString(c.getColumnIndex("name"));
+            long time = c.getLong(c.getColumnIndex("last_updated"));
 
+            ((TextView)v.findViewById(R.id.title)).setText(name);
 
-            String name = ((TextView)v.findViewById(R.id.title)).getText().toString();
             TextView statusView = (TextView) v.findViewById(R.id.status);
             if(syncers.get(name)!=null)
                 syncers.get(name).setViewOnScreen((AttachedRelativeLayout) v);
-            else if(statusView.getText().toString().length()==0)
+            else if(time==0)
                 statusView.setText(R.string.never_run);
             else
-                Syncer.setStatusTime(JobList.this, name, (AttachedRelativeLayout) v);
-            return v;
+                Syncer.setStatusTime(JobList.this, (AttachedRelativeLayout) v, time);
         }
     }
 }

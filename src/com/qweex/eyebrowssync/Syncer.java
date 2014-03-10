@@ -158,8 +158,11 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             Bundle b = new Bundle();
             b.putLong("last_updated", time);
             SavedJobs.update(context, server.getString("name"), b);
+        } else {
+            Bundle b = SavedJobs.get(context, server.getString("name"));
+            time = b.getLong("last_updated");
         }
-        Syncer.setStatusTime(context, server.getString("name"), viewOnScreen);
+        Syncer.setStatusTime(context, viewOnScreen, time);
         if(viewOnScreen !=null)
             viewOnScreen.attachTo(null);
     }
@@ -296,9 +299,7 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
         return phase != Syncer.PHASE.FINISHED && phase != Syncer.PHASE.ERROR;
     }
 
-    public static void setStatusTime(Context context, String name, AttachedRelativeLayout view) {
-        Bundle b = SavedJobs.get(context, name);
-        long time = b.getLong("last_updated");
+    public static void setStatusTime(Context context, AttachedRelativeLayout view, long time) {
         String current_time = DateUtils.getRelativeDateTimeString(context, time, DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, 0).toString();
         view.status().setText(current_time);
         view.status().setTextColor(context.getResources().getColor(R.color.status_inactive));
