@@ -115,7 +115,6 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             }
 
         } catch (EyebrowsError eyebrowsError) {
-            //TODO
             eyebrowsError.printStackTrace();
             return eyebrowsError;
         } catch (IOException e) {
@@ -146,6 +145,7 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
     protected void onPostExecute(Exception e) {
         failure = e;
         if(failure!=null) {
+            //TODO
             phase = PHASE.ERROR;
             onProgressUpdate();
             return;
@@ -158,17 +158,10 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             Bundle b = new Bundle();
             b.putLong("last_updated", time);
             SavedServers.update(context, server.getString("name"), b);
-        } else {
-            Bundle b = SavedServers.get(context, server.getString("name"));
-            time = b.getLong("last_updated");
         }
-        String current_time = DateUtils.getRelativeDateTimeString(context, time, DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, 0).toString();
-        if(viewOnScreen !=null) {
-            viewOnScreen.status().setText(current_time);
-            viewOnScreen.status().setTextColor(context.getResources().getColor(R.color.status_inactive));
-            viewOnScreen.button().setText("...");
+        Syncer.setStatusTime(context, server.getString("name"), viewOnScreen);
+        if(viewOnScreen !=null)
             viewOnScreen.attachTo(null);
-        }
     }
 
     @Override
@@ -301,6 +294,15 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
 
     public boolean isRunning() {
         return phase != Syncer.PHASE.FINISHED && phase != Syncer.PHASE.ERROR;
+    }
+
+    public static void setStatusTime(Context context, String name, AttachedRelativeLayout view) {
+        Bundle b = SavedServers.get(context, name);
+        long time = b.getLong("last_updated");
+        String current_time = DateUtils.getRelativeDateTimeString(context, time, DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, 0).toString();
+        view.status().setText(current_time);
+        view.status().setTextColor(context.getResources().getColor(R.color.status_inactive));
+        view.button().setText("...");
     }
 
     public class CanceledException extends Exception {}

@@ -171,12 +171,8 @@ public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClic
                 syncers.get(name).setViewOnScreen((AttachedRelativeLayout) v);
             else if(statusView.getText().toString().length()==0)
                 statusView.setText(R.string.never_run);
-            else {
-                long time = Long.parseLong(statusView.getText().toString());
-                statusView.setText(
-                        DateUtils.getRelativeDateTimeString(v.getContext(), time, DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, 0)
-                );
-            }
+            else
+                Syncer.setStatusTime(ServerList.this, name, (AttachedRelativeLayout) v);
             return v;
         }
     }
