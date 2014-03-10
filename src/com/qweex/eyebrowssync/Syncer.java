@@ -43,7 +43,7 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
     boolean onlySimulate;
 
     public Syncer(Context context, String name, boolean simulate) {
-        server = SavedServers.get(context, name);
+        server = SavedJobs.get(context, name);
         filesToDownload = new ArrayList<String>();
         filesToDelete = new ArrayList<String>();
         this.context = context;
@@ -157,7 +157,7 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             time = System.currentTimeMillis();
             Bundle b = new Bundle();
             b.putLong("last_updated", time);
-            SavedServers.update(context, server.getString("name"), b);
+            SavedJobs.update(context, server.getString("name"), b);
         }
         Syncer.setStatusTime(context, server.getString("name"), viewOnScreen);
         if(viewOnScreen !=null)
@@ -297,7 +297,7 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
     }
 
     public static void setStatusTime(Context context, String name, AttachedRelativeLayout view) {
-        Bundle b = SavedServers.get(context, name);
+        Bundle b = SavedJobs.get(context, name);
         long time = b.getLong("last_updated");
         String current_time = DateUtils.getRelativeDateTimeString(context, time, DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, 0).toString();
         view.status().setText(current_time);

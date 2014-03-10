@@ -18,7 +18,7 @@ import java.security.NoSuchAlgorithmException;
 
 
 /********************* DB stuff for getting/setting saved servers *********************/
-public class SavedServers {
+public class SavedJobs {
     /** The file containing the databases. */
     private static final String DATABASE= "EyebrowsSync.db";
     /** One of the tables in the SQL database. */

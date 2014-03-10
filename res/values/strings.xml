@@ -2,13 +2,13 @@
 <resources>
     <string name="app_name">Eyebrows Sync</string>
 
-    <string name="no_servers">No saved servers.\nConnect to one from the options menu.</string>
+    <string name="no_jobs">No saved jobs.\nCreate one from the options menu.</string>
     <string name="run">Run</string>
     <string name="simulate">Simulate</string>
     <string name="cancel">Cancel</string>
     <string name="edit">Edit</string>
     <string name="delete">Delete</string>
-    <string name="confirm_delete">Are you sure you want to delete this server?</string>
+    <string name="confirm_delete">Are you sure you want to delete this job?</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>
     <string name="create">Create</string>

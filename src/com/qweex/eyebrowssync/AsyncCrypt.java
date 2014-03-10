@@ -8,7 +8,6 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.util.Log;
 import android.widget.ProgressBar;
 import com.qweex.utils.Crypt;
 
@@ -16,10 +15,7 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import java.security.InvalidKeyException;
-import java.security.Key;
 import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.spec.InvalidKeySpecException;
 
 class AsyncCrypt extends AsyncTask<String, Void, Exception> {
     Dialog dialog;
@@ -39,7 +35,7 @@ class AsyncCrypt extends AsyncTask<String, Void, Exception> {
     @Override
     protected void onPreExecute() {
         ProgressBar herp = new ProgressBar(c);
-        if(SavedServers.getAll().getCount()>0)
+        if(SavedJobs.getAll().getCount()>0)
             dialog = new AlertDialog.Builder(c)
                     .setTitle(t.toString())
                     .setView(herp)
@@ -73,7 +69,7 @@ class AsyncCrypt extends AsyncTask<String, Void, Exception> {
 
     private void doTask(Task task, String password) throws IllegalBlockSizeException, InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, BadPaddingException {
         UserConfig.masterKey = Crypt.getKeyFromPassword(password);
-        Cursor c = SavedServers.getAll();
+        Cursor c = SavedJobs.getAll();
         if(c.getCount()==0)
             return;
         c.moveToFirst();
@@ -89,7 +85,7 @@ class AsyncCrypt extends AsyncTask<String, Void, Exception> {
             Bundle b = new Bundle();
             //b.putString("name", c.getString(c.getColumnIndex("name")));
             b.putString("auth", auth);
-            SavedServers.update(this.c, c.getString(c.getColumnIndex("name")), b);
+            SavedJobs.update(this.c, c.getString(c.getColumnIndex("name")), b);
             c.moveToNext();
         }
     }

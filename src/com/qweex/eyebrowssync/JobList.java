@@ -7,7 +7,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
 import android.os.Bundle;
-import android.text.format.DateUtils;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -16,7 +15,7 @@ import android.widget.*;
 
 import java.util.HashMap;
 
-public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClickListener {
+public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickListener {
     AttachedRelativeLayout rowClicked;
     String nameOfClicked() { return ((TextView)rowClicked.findViewById(R.id.title)).getText().toString(); }
 
@@ -25,7 +24,7 @@ public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClic
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        SavedServers.initialize(this);
+        SavedJobs.initialize(this);
 
         getListView().setBackgroundColor(getResources().getColor(android.R.color.white));
         ((View)getListView().getParent()).setBackgroundColor(getResources().getColor(android.R.color.white));
@@ -44,7 +43,7 @@ public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClic
         super.onResume();
         CursorAdapter cursorAdapter = new SimplishCursorAdapter(this,
                 R.layout.server_item,
-                SavedServers.getAll(),
+                SavedJobs.getAll(),
                 new String[] {"name", "last_updated"},
                 new int[] { R.id.title, R.id.status});
         setListAdapter(cursorAdapter);
@@ -66,12 +65,12 @@ public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClic
         switch(item.getItemId())
         {
             case 0: //create
-                clas = EditServer.class;
+                clas = EditJob.class;
                 break;
             default:
                 return false;
         }
-        i = new Intent(ServerList.this, clas);
+        i = new Intent(JobList.this, clas);
         startActivityForResult(i, clas.hashCode() % 0xffff);
         return super.onOptionsItemSelected(item);
     }
@@ -95,19 +94,19 @@ public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClic
                 syncers.put(nameOfClicked(), newSyncer);
                 break;
             case R.id.edit:
-                Intent i = new Intent(ServerList.this, EditServer.class);
+                Intent i = new Intent(JobList.this, EditJob.class);
                 i.putExtra("name", nameOfClicked());
                 startActivity(i);
                 break;
             case R.id.delete:
-                new AlertDialog.Builder(ServerList.this)
+                new AlertDialog.Builder(JobList.this)
                         .setTitle(nameOfClicked())
                         .setMessage(R.string.confirm_delete)
                         .setNegativeButton(R.string.no, null)
                         .setPositiveButton(R.string.yes, new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialogInterface, int i) {
-                                SavedServers.remove(nameOfClicked());
+                                SavedJobs.remove(nameOfClicked());
                                 onResume();
                             }
                         })
@@ -133,7 +132,7 @@ public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClic
         public void onClick(View v) {
             rowClicked = (AttachedRelativeLayout) v.getParent();
 
-            PopupMenu popupMenu = new PopupMenu(ServerList.this, v);
+            PopupMenu popupMenu = new PopupMenu(JobList.this, v);
 
             String name = ((TextView)rowClicked.findViewById(R.id.title)).getText().toString();
             if(syncers.get(name)!=null && syncers.get(name).isRunning())
@@ -141,7 +140,7 @@ public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClic
             else
                 popupMenu.getMenuInflater().inflate(R.menu.edit_menu, popupMenu.getMenu());
 
-            popupMenu.setOnMenuItemClickListener(ServerList.this);
+            popupMenu.setOnMenuItemClickListener(JobList.this);
             popupMenu.show();
         }
     };
@@ -172,7 +171,7 @@ public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClic
             else if(statusView.getText().toString().length()==0)
                 statusView.setText(R.string.never_run);
             else
-                Syncer.setStatusTime(ServerList.this, name, (AttachedRelativeLayout) v);
+                Syncer.setStatusTime(JobList.this, name, (AttachedRelativeLayout) v);
             return v;
         }
     }

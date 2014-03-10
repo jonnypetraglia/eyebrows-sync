@@ -7,10 +7,9 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
-import android.widget.Toast;
 import com.qweex.utils.DirectoryChooserDialog;
 
-public class EditServer extends Activity implements DirectoryChooserDialog.OnDirectoryChosen {
+public class EditJob extends Activity implements DirectoryChooserDialog.OnDirectoryChosen {
 
     String nameWas;
 
@@ -21,7 +20,7 @@ public class EditServer extends Activity implements DirectoryChooserDialog.OnDir
         if(getIntent().getExtras()!=null) {
             nameWas = getIntent().getExtras().getString("name");
             if(nameWas!=null) {
-                Bundle b = SavedServers.get(this, nameWas);
+                Bundle b = SavedJobs.get(this, nameWas);
                 ((EditText)findViewById(R.id.name)).setText(nameWas);
                 ((EditText)findViewById(R.id.host)).setText(b.getString("host"));
                 ((EditText)findViewById(R.id.port)).setText(Integer.toString(b.getInt("port")));
@@ -37,7 +36,7 @@ public class EditServer extends Activity implements DirectoryChooserDialog.OnDir
         findViewById(R.id.local_path).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                DirectoryChooserDialog d = new DirectoryChooserDialog(EditServer.this, EditServer.this);
+                DirectoryChooserDialog d = new DirectoryChooserDialog(EditJob.this, EditJob.this);
                 d.setNewFolderEnabled(true);
                 d.chooseDirectory();
             }
@@ -66,14 +65,14 @@ public class EditServer extends Activity implements DirectoryChooserDialog.OnDir
             b.putString("mask", ((EditText)findViewById(R.id.mask)).getText().toString());
 
             if(nameWas==null)
-                SavedServers.add(EditServer.this, b);
+                SavedJobs.add(EditJob.this, b);
             else
             {
                 if(!nameWas.equals(newName)) {
-                    ServerList.syncers.put(newName, ServerList.syncers.get(nameWas));
-                    ServerList.syncers.remove(nameWas);
+                    JobList.syncers.put(newName, JobList.syncers.get(nameWas));
+                    JobList.syncers.remove(nameWas);
                 }
-                SavedServers.update(EditServer.this, nameWas, b);
+                SavedJobs.update(EditJob.this, nameWas, b);
             }
             finish();
         }

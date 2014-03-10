@@ -6,6 +6,6 @@
           android:padding="10dip"
           android:gravity="center"
           android:textColor="@android:color/black"
-          android:text="@string/no_servers">
+          android:text="@string/no_jobs">
 
 </TextView>

@@ -163,7 +163,7 @@ public class UserConfig extends PreferenceActivity
     Preference.OnPreferenceClickListener remove_pass = new Preference.OnPreferenceClickListener() {
         @Override
         public boolean onPreferenceClick(Preference _preference) {
-            if(SavedServers.getAll().getCount()>0)
+            if(SavedJobs.getAll().getCount()>0)
             {
                 current_password.setVisibility(View.GONE);
                 password_confirm.setVisibility(View.GONE);
