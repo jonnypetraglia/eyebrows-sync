@@ -17,7 +17,7 @@ import android.widget.*;
 import java.util.HashMap;
 
 public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClickListener {
-    RelativeLayout rowClicked;
+    AttachedRelativeLayout rowClicked;
     String nameOfClicked() { return ((TextView)rowClicked.findViewById(R.id.title)).getText().toString(); }
 
     static HashMap<String, Syncer> syncers;
@@ -80,10 +80,17 @@ public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClic
     public boolean onMenuItemClick(MenuItem item) {
 
         switch(item.getItemId()) {
+            // Not Running
             case R.id.run:
-                StatusTextView statusView = (StatusTextView) rowClicked.findViewById(R.id.status);
-                Syncer newSyncer = new Syncer(this, nameOfClicked());
-                statusView.attachTo(newSyncer);
+            case R.id.simulate:
+                if(syncers.containsKey(nameOfClicked())) {
+                    if(syncers.get(nameOfClicked()).isRunning())
+                        break;
+                    syncers.remove(nameOfClicked());
+                }
+
+                Syncer newSyncer = new Syncer(this, nameOfClicked(), item.getItemId()==R.id.simulate);
+                rowClicked.attachTo(newSyncer);
                 newSyncer.execute();
                 syncers.put(nameOfClicked(), newSyncer);
                 break;
@@ -106,6 +113,14 @@ public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClic
                         })
                         .show();
                 break;
+            case R.id.log:
+                break;
+            // Running
+            case R.id.cancel:
+                if(syncers.containsKey(nameOfClicked())) {
+                    syncers.get(nameOfClicked()).cancel(false);
+                }
+                break;
         }
 
         return false;
@@ -116,9 +131,16 @@ public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClic
     View.OnClickListener showPopup = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
-            rowClicked = (RelativeLayout) v.getParent();
+            rowClicked = (AttachedRelativeLayout) v.getParent();
+
             PopupMenu popupMenu = new PopupMenu(ServerList.this, v);
-            popupMenu.getMenuInflater().inflate(R.menu.edit_menu, popupMenu.getMenu());
+
+            String name = ((TextView)rowClicked.findViewById(R.id.title)).getText().toString();
+            if(syncers.get(name)!=null && syncers.get(name).isRunning())
+                popupMenu.getMenuInflater().inflate(R.menu.run_menu, popupMenu.getMenu());
+            else
+                popupMenu.getMenuInflater().inflate(R.menu.edit_menu, popupMenu.getMenu());
+
             popupMenu.setOnMenuItemClickListener(ServerList.this);
             popupMenu.show();
         }
@@ -140,15 +162,15 @@ public class ServerList extends ListActivity implements PopupMenu.OnMenuItemClic
             View v = super.getView(position, convertView, parent);
 
             if(setListener)
-                v.findViewById(R.id.show_menu).setOnClickListener(showPopup);
+                v.findViewById(R.id.button).setOnClickListener(showPopup);
 
 
             String name = ((TextView)v.findViewById(R.id.title)).getText().toString();
-            StatusTextView statusView = (StatusTextView) v.findViewById(R.id.status);
+            TextView statusView = (TextView) v.findViewById(R.id.status);
             if(syncers.get(name)!=null)
-                syncers.get(name).setStatusView(statusView);
+                syncers.get(name).setViewOnScreen((AttachedRelativeLayout) v);
             else if(statusView.getText().toString().length()==0)
-                statusView.setText("(Never run)");
+                statusView.setText(R.string.never_run);
             else {
                 long time = Long.parseLong(statusView.getText().toString());
                 statusView.setText(

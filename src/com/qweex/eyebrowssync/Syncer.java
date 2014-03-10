@@ -32,44 +32,50 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
     int totalDeletes;
     Bundle server;
     Context context;
-    enum PHASE {PREPARING, COUNTING, DOWNLOADING, DELETING, ERROR}
+    public enum PHASE {PREPARING, COUNTING, DOWNLOADING, DELETING, ERROR, FINISHED}
     PHASE phase = PHASE.PREPARING;
     Exception failure;
-    StatusTextView statusView;
+    AttachedRelativeLayout viewOnScreen;
     Pattern maskPattern;
-    String[] bouncingBall = new String[] {"(O o o)", "(o O o)", "(o o O)", "(o O o)"};
+    String[] bouncingBall = new String[] {"Ooo", "oOo", "ooO", "oOo"};
     int bouncingIndex = 0;
     int bouncingRate = 4; //Higher == Slower
+    boolean onlySimulate;
 
-    public Syncer(Context context, String name) {
+    public Syncer(Context context, String name, boolean simulate) {
         server = SavedServers.get(context, name);
         filesToDownload = new ArrayList<String>();
         filesToDelete = new ArrayList<String>();
         this.context = context;
         if(server.getString("mask").length()>0)
             maskPattern = Pattern.compile(server.getString("mask"));
+        onlySimulate = simulate;
     }
 
     @Override
     protected void onProgressUpdate(Void... voids) {
-        if(statusView==null)
+        if(viewOnScreen ==null)
             return;
         switch(phase) {
             case COUNTING:
-                statusView.setText(bouncingBall[bouncingIndex/bouncingRate] + " Changes: +" + filesToDownload.size() + "/-" + filesToDelete.size());
-                statusView.setTextColor(context.getResources().getColor(R.color.status_preparing));
+                viewOnScreen.button().setText(bouncingBall[bouncingIndex / bouncingRate]);
+                viewOnScreen.status().setText("Changes: +" + filesToDownload.size() + "/-" + filesToDelete.size());
+                viewOnScreen.status().setTextColor(context.getResources().getColor(R.color.status_preparing));
                 break;
             case DOWNLOADING:
-                statusView.setText(bouncingBall[bouncingIndex/bouncingRate] + " Downloading: " + (totalDownloads-filesToDownload.size()) + "/" + totalDownloads);
-                statusView.setTextColor(context.getResources().getColor(R.color.status_running));
+                viewOnScreen.button().setText(bouncingBall[bouncingIndex / bouncingRate]);
+                viewOnScreen.status().setText("Downloading: " + (totalDownloads - filesToDownload.size()) + "/" + totalDownloads);
+                viewOnScreen.status().setTextColor(context.getResources().getColor(R.color.status_running));
                 break;
             case DELETING:
-                statusView.setText(bouncingBall[bouncingIndex/bouncingRate] + " Deleting: " + (totalDeletes-filesToDelete.size()) + "/" + totalDeletes);
-                statusView.setTextColor(context.getResources().getColor(R.color.status_running));
+                viewOnScreen.button().setText(bouncingBall[bouncingIndex / bouncingRate]);
+                viewOnScreen.status().setText("Deleting: " + (totalDeletes - filesToDelete.size()) + "/" + totalDeletes);
+                viewOnScreen.status().setTextColor(context.getResources().getColor(R.color.status_running));
                 break;
             case ERROR:
-                statusView.setText("Error: " + failure);
-                statusView.setTextColor(context.getResources().getColor(R.color.status_error));
+                viewOnScreen.button().setText(bouncingBall[bouncingIndex / bouncingRate]);
+                viewOnScreen.status().setText("Error: " + failure);
+                viewOnScreen.status().setTextColor(context.getResources().getColor(R.color.status_error));
                 break;
         }
         bouncingIndex = (bouncingIndex+1) % (bouncingBall.length*bouncingRate);
@@ -82,6 +88,8 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             //1. Build list of all files needing to be downloaded (and deleted)
             phase = PHASE.COUNTING;
             tallyFolder("");
+            if(onlySimulate)
+                return null;
 
 
             //2. Do the actual downloading
@@ -97,8 +105,6 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             //3. Do the deleting
             phase = PHASE.DELETING;
             totalDeletes = filesToDelete.size();
-            Log.d("EyebrowsSync", "FilesToDelete: ");
-
             while(!filesToDelete.isEmpty()) {
                 String f = filesToDelete.remove(0);
                 File localTarget = new File(localSubdir, f);
@@ -118,11 +124,15 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
         } catch (JSONException e) {
             e.printStackTrace();
             return e;
+        } catch (CanceledException e) {
+            Log.d("EyebrowsSync", "Task has been Canceled");
         }
         return null;
     }
 
-    boolean DeleteRecursive(File fileOrDirectory) {
+    boolean DeleteRecursive(File fileOrDirectory) throws CanceledException {
+        if(isCancelled())
+            throw new CanceledException();
         boolean res = true;
         if(fileOrDirectory.isDirectory())
             for(File child : fileOrDirectory.listFiles())
@@ -140,25 +150,41 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             onProgressUpdate();
             return;
         }
+        phase = PHASE.FINISHED;
 
-        long time = System.currentTimeMillis();
-        Bundle b = new Bundle();
-        b.putLong("last_updated", time);
-        SavedServers.update(context, server.getString("name"), b);
-        String current_time = DateUtils.getRelativeDateTimeString(context, time, DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, 0).toString();
-        if(statusView!=null) {
-            statusView.setText(current_time);
-            statusView.setTextColor(context.getResources().getColor(R.color.status_inactive));
-            statusView.attachTo(null);
+        long time;
+        if(!onlySimulate && !isCancelled()) {
+            time = System.currentTimeMillis();
+            Bundle b = new Bundle();
+            b.putLong("last_updated", time);
+            SavedServers.update(context, server.getString("name"), b);
+        } else {
+            Bundle b = SavedServers.get(context, server.getString("name"));
+            time = b.getLong("last_updated");
         }
-        ServerList.syncers.remove(server.getString("name"));
+        String current_time = DateUtils.getRelativeDateTimeString(context, time, DateUtils.MINUTE_IN_MILLIS, DateUtils.WEEK_IN_MILLIS, 0).toString();
+        if(viewOnScreen !=null) {
+            viewOnScreen.status().setText(current_time);
+            viewOnScreen.status().setTextColor(context.getResources().getColor(R.color.status_inactive));
+            viewOnScreen.button().setText("...");
+            viewOnScreen.attachTo(null);
+        }
     }
 
-    void tallyFolder(String subfolder) throws EyebrowsError, IOException, JSONException {
+    @Override
+    protected void onCancelled(Exception e) {
+        onPostExecute(e);
+    }
+
+    void tallyFolder(String subfolder) throws EyebrowsError, IOException, JSONException, CanceledException {
         Log.i("EyebrowsSync", "Tallying: " + subfolder);
         List<String> foreignDirs = new ArrayList<String>();
         File localSubdir = new File(server.getString("local_path"));
         localSubdir = new File(localSubdir, subfolder);
+
+        //0. Check to see if we are canceled
+        if(isCancelled())
+            throw new CanceledException();
 
         //1. Get list of local files
         List<String> localFiles = new ArrayList<String>();
@@ -200,7 +226,7 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
                 filesToDownload.add(joinAppend(subfolder, foreignFile.getString("name")));
         }
 
-        //4. foreach file stil lin local_files
+        //4. foreach file still in local_files
         for(String localFile : localFiles)
             filesToDelete.add(joinAppend(subfolder, localFile));
         publishProgress();
@@ -210,7 +236,7 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             tallyFolder(joinAppend(subfolder, foreignDir));
     }
 
-    void downloadFile(String url, File target) throws IOException {
+    void downloadFile(String url, File target) throws IOException, CanceledException {
         Log.d("EyebrowsSync", "++Downloading: " + url + " -> " + target);
 
         HttpURLConnection urlConnection = (HttpURLConnection) new URL(url).openConnection();
@@ -234,6 +260,11 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
             if(bucket>updateInterval) {
                 bucket = bucket % updateInterval;
                 publishProgress();
+                if(isCancelled()) {
+                    fileOutput.close();
+                    target.delete();
+                    throw new CanceledException();
+                }
             }
             fileOutput.write(buffer, 0, bufferLength);
         }
@@ -259,8 +290,18 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
         return TextUtils.join("/", new String[]{subfolder, thingToAppend});
     }
 
-    public void setStatusView(StatusTextView view) {
-        statusView = view;
+    public void setViewOnScreen(AttachedRelativeLayout view) {
+        viewOnScreen = view;
         onProgressUpdate();
     }
+
+    public PHASE getPhase() {
+        return phase;
+    }
+
+    public boolean isRunning() {
+        return phase != Syncer.PHASE.FINISHED && phase != Syncer.PHASE.ERROR;
+    }
+
+    public class CanceledException extends Exception {}
 }
