@@ -329,7 +329,7 @@ public class Syncer extends AsyncTask<String, Long, Exception> {
 
     // Tests if running
     public boolean isRunning() {
-        return phase != Syncer.PHASE.FINISHED && phase != Syncer.PHASE.ERROR;
+        return phase != Syncer.PHASE.FINISHED && phase != Syncer.PHASE.ERROR && phase != PHASE.CANCELED;
     }
 
     // (static) Setter

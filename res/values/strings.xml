@@ -37,4 +37,6 @@
     <string name="name">Name</string>
     <string name="never_run">(Never run)</string>
     <string name="status">Status</string>
+    <string name="run_all">Run All</string>
+    <string name="cancel_all">Cancel All</string>
 </resources>

@@ -5,7 +5,10 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
+import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.*;
 import android.widget.*;
 import android.support.v4.app.NotificationCompat;
@@ -46,9 +49,12 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
     }
 
     // Creates options menu
+    final int CREATE_ID = 0, RUN_ALL_ID = 1, CANCEL_ALL_ID = 2;
     @Override
     public boolean onCreateOptionsMenu(Menu u) {
-        u.add(0, 0, 0, R.string.create);
+        u.add(0, CREATE_ID, 0, R.string.create);
+        u.add(0, RUN_ALL_ID, 0, R.string.run_all);
+        u.add(0, CANCEL_ALL_ID, 0, R.string.cancel_all);
         return super.onCreateOptionsMenu(u);
     }
 
@@ -56,19 +62,82 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
     @Override
     public boolean onOptionsItemSelected(MenuItem item)
     {
-        Intent i = null;
-        Class<?> clas = null;
         switch(item.getItemId())
         {
-            case 0: //create
-                clas = EditJob.class;
+            case CREATE_ID:
+                startActivityForResult(new Intent(JobList.this, EditJob.class), EditJob.class.hashCode() % 0xffff);
+                break;
+            case RUN_ALL_ID:
+                Cursor c = SavedJobs.getAll();
+                if(c.getCount()>0)
+                    c.moveToFirst();
+                while(!c.isAfterLast()) {
+                    String name = c.getString(c.getColumnIndex("name"));
+
+                    //TODO: This sucks
+                    AttachedRelativeLayout v = null;
+                    for(int i=0; i<getListView().getChildCount(); i++) {
+                        v = (AttachedRelativeLayout) getListView().getChildAt(i);
+                        if(((TextView)(v.findViewById(R.id.title))).getText().toString().equals(name))
+                            break;
+                    }
+
+                    runJob(name, false, v);
+                    c.moveToNext();
+                }
+                break;
+            case CANCEL_ALL_ID:
+                Set<String> keys = syncers.keySet();
+                for(String key : keys) {
+                    Syncer syncer = syncers.get(key);
+                    if(syncer == null)
+                        continue;
+                    syncer.cancel(false);
+                }
                 break;
             default:
                 return false;
         }
-        i = new Intent(JobList.this, clas);
-        startActivityForResult(i, clas.hashCode() % 0xffff);
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public boolean onMenuOpened(int featureId, Menu menu) {
+        if(menu==null) {
+            return super.onMenuOpened(featureId, menu);
+        }
+        boolean noneRunning = true;
+        boolean allRunning = true;
+        Cursor c = SavedJobs.getAll();
+        if(c.getCount()>0)
+            c.moveToFirst();
+        while(!c.isAfterLast()) {
+            String name = c.getString(c.getColumnIndex("name"));
+            if(!syncers.containsKey(name) || syncers.get(name)==null)
+                allRunning = false; //We found a stopped one!
+            else
+                noneRunning &= !syncers.get(name).isRunning();
+            c.moveToNext();
+        }
+        menu.findItem(RUN_ALL_ID).setEnabled(!allRunning);
+        menu.findItem(CANCEL_ALL_ID).setEnabled(!noneRunning);
+        return super.onMenuOpened(featureId, menu);
+    }
+
+    void runJob(String name, boolean simulate, AttachedRelativeLayout view) {
+        if(syncers.containsKey(name)) {
+            if(syncers.get(name).isRunning())
+                return;
+            syncers.remove(name);
+        }
+
+        Syncer newSyncer = new Syncer(this, name, simulate, supervisor);
+        view.attachTo(newSyncer);
+        if(Build.VERSION.SDK_INT >= 11) //HONEYCOMB
+            newSyncer.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        else
+            newSyncer.execute();
+        syncers.put(name, newSyncer);
     }
 
     @Override
@@ -78,16 +147,7 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
             // Not Running
             case R.id.run:
             case R.id.simulate:
-                if(syncers.containsKey(nameOfClicked())) {
-                    if(syncers.get(nameOfClicked()).isRunning())
-                        break;
-                    syncers.remove(nameOfClicked());
-                }
-
-                Syncer newSyncer = new Syncer(this, nameOfClicked(), item.getItemId()==R.id.simulate, supervisor);
-                rowClicked.attachTo(newSyncer);
-                newSyncer.execute();
-                syncers.put(nameOfClicked(), newSyncer);
+                runJob(nameOfClicked(), item.getItemId()==R.id.simulate, rowClicked);
                 break;
             case R.id.edit:
                 Intent i = new Intent(JobList.this, EditJob.class);
@@ -138,11 +198,14 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
 
             PopupMenu popupMenu = new PopupMenu(JobList.this, v);
 
+
             String name = ((TextView)rowClicked.findViewById(R.id.title)).getText().toString();
             if(syncers.get(name)!=null && syncers.get(name).isRunning())
                 popupMenu.getMenuInflater().inflate(R.menu.run_menu, popupMenu.getMenu());
             else
                 popupMenu.getMenuInflater().inflate(R.menu.edit_menu, popupMenu.getMenu());
+
+            popupMenu.getMenu().findItem(R.id.status).setVisible(syncers.get(name)!=null);
 
             popupMenu.setOnMenuItemClickListener(JobList.this);
             popupMenu.show();
