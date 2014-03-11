@@ -133,6 +133,7 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
 
         Syncer newSyncer = new Syncer(this, name, simulate, supervisor);
         view.attachTo(newSyncer);
+        newSyncer.prepareYourDiddlyHole();
         if(Build.VERSION.SDK_INT >= 11) //HONEYCOMB
             newSyncer.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         else

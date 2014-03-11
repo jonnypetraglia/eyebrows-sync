@@ -60,6 +60,10 @@ public class Syncer extends AsyncTask<String, Long, Exception> {
         statusWindow = new StatusWindow(context, this);
     }
 
+    public void prepareYourDiddlyHole() {
+        viewOnScreen.button().setText("ooo");
+    }
+
     // Update the notification & button
     @Override
     protected void onProgressUpdate(Long... currentFileSize) {
