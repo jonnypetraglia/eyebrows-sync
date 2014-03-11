@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Eyebrows Sync</string>
-
     <string name="no_jobs">No saved jobs.\nCreate one from the options menu.</string>
     <string name="run">Run</string>
     <string name="simulate">Simulate</string>

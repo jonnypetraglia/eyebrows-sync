@@ -8,7 +8,6 @@ import android.database.Cursor;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.*;
 import android.widget.*;
 import android.support.v4.app.NotificationCompat;
@@ -49,12 +48,13 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
     }
 
     // Creates options menu
-    final int CREATE_ID = 0, RUN_ALL_ID = 1, CANCEL_ALL_ID = 2;
+    final int CREATE_NEW_ID = 0, RUN_ALL_ID = 1, CANCEL_ALL_ID = 2, ABOUT_ID = 3;
     @Override
     public boolean onCreateOptionsMenu(Menu u) {
-        u.add(0, CREATE_ID, 0, R.string.create);
+        u.add(0, CREATE_NEW_ID, 0, R.string.create);
         u.add(0, RUN_ALL_ID, 0, R.string.run_all);
         u.add(0, CANCEL_ALL_ID, 0, R.string.cancel_all);
+        u.add(0, ABOUT_ID, 0, R.string.about);
         return super.onCreateOptionsMenu(u);
     }
 
@@ -64,8 +64,8 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
     {
         switch(item.getItemId())
         {
-            case CREATE_ID:
-                startActivityForResult(new Intent(JobList.this, EditJob.class), EditJob.class.hashCode() % 0xffff);
+            case CREATE_NEW_ID:
+                startActivity(new Intent(JobList.this, EditJob.class));
                 break;
             case RUN_ALL_ID:
                 Cursor c = SavedJobs.getAll();
@@ -94,6 +94,9 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
                         continue;
                     syncer.cancel(false);
                 }
+                break;
+            case ABOUT_ID:
+                startActivity(new Intent(JobList.this, AboutActivity.class));
                 break;
             default:
                 return false;

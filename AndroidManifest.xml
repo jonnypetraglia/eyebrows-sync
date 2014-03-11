@@ -17,5 +17,6 @@
             </intent-filter>
         </activity>
         <activity android:name=".EditJob" android:theme="@style/Eyebrows"/>
+        <activity android:name=".AboutActivity" android:theme="@style/Eyebrows"/>
     </application>
 </manifest>
