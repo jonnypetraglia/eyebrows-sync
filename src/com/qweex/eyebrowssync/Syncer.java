@@ -27,9 +27,9 @@ import java.util.regex.Pattern;
 
 public class Syncer extends AsyncTask<String, Void, Exception> {
     ArrayList<String> filesToDownload;
-    int totalDownloads;
+    int currentDownload;
     ArrayList<String> filesToDelete;
-    int totalDeletes;
+    int currentDelete;
     Bundle server;
     Context context;
     public enum PHASE {PREPARING, COUNTING, DOWNLOADING, DELETING, ERROR, FINISHED}
@@ -41,8 +41,9 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
     int bouncingIndex = 0;
     int bouncingRate = 4; //Higher == Slower
     boolean onlySimulate;
+    JobList.NotificationSupervisor supervisor;
 
-    public Syncer(Context context, String name, boolean simulate) {
+    public Syncer(Context context, String name, boolean simulate, JobList.NotificationSupervisor s) {
         server = SavedJobs.get(context, name);
         filesToDownload = new ArrayList<String>();
         filesToDelete = new ArrayList<String>();
@@ -50,10 +51,17 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
         if(server.getString("mask").length()>0)
             maskPattern = Pattern.compile(server.getString("mask"));
         onlySimulate = simulate;
+        supervisor = s;
     }
 
+    int dudeDontFreakTheSupervisorOut = 0;
     @Override
     protected void onProgressUpdate(Void... voids) {
+        if(++dudeDontFreakTheSupervisorOut>7)
+        {
+            dudeDontFreakTheSupervisorOut=0;
+            supervisor.update();
+        }
         if(viewOnScreen ==null)
             return;
         switch(phase) {
@@ -64,12 +72,12 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
                 break;
             case DOWNLOADING:
                 viewOnScreen.button().setText(bouncingBall[bouncingIndex / bouncingRate]);
-                viewOnScreen.status().setText("Downloading: " + (totalDownloads - filesToDownload.size()) + "/" + totalDownloads);
+                viewOnScreen.status().setText("Downloading: " + (filesToDownload.size() - currentDownload) + "/" + filesToDownload.size());
                 viewOnScreen.status().setTextColor(context.getResources().getColor(R.color.status_running));
                 break;
             case DELETING:
                 viewOnScreen.button().setText(bouncingBall[bouncingIndex / bouncingRate]);
-                viewOnScreen.status().setText("Deleting: " + (totalDeletes - filesToDelete.size()) + "/" + totalDeletes);
+                viewOnScreen.status().setText("Deleting: " + (filesToDelete.size() - currentDelete) + "/" + filesToDelete.size());
                 viewOnScreen.status().setTextColor(context.getResources().getColor(R.color.status_running));
                 break;
             case ERROR:
@@ -94,19 +102,17 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
 
             //2. Do the actual downloading
             phase = PHASE.DOWNLOADING;
-            totalDownloads = filesToDownload.size();
             File localSubdir = new File(server.getString("local_path"));
-            while(!filesToDownload.isEmpty()) {
-                String foreignPath = filesToDownload.remove(0);
+            for(currentDownload = 0; currentDownload < filesToDownload.size(); currentDownload++) {
+                String foreignPath = filesToDownload.get(currentDownload);
                 File localTarget = new File(localSubdir, foreignPath);
                 downloadFile(getServerPath(foreignPath), localTarget);
             }
 
             //3. Do the deleting
             phase = PHASE.DELETING;
-            totalDeletes = filesToDelete.size();
-            while(!filesToDelete.isEmpty()) {
-                String f = filesToDelete.remove(0);
+            for(currentDelete = 0; currentDelete < filesToDelete.size(); currentDelete++) {
+                String f = filesToDelete.get(currentDelete);
                 File localTarget = new File(localSubdir, f);
                 boolean r = DeleteRecursive(localTarget);
                 if(localTarget.exists() && r)
@@ -165,6 +171,7 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
         Syncer.setStatusTime(context, viewOnScreen, time);
         if(viewOnScreen !=null)
             viewOnScreen.attachTo(null);
+        supervisor.update();
     }
 
     @Override
@@ -304,6 +311,14 @@ public class Syncer extends AsyncTask<String, Void, Exception> {
         view.status().setText(current_time);
         view.status().setTextColor(context.getResources().getColor(R.color.status_inactive));
         view.button().setText("...");
+    }
+
+    public int totalDownloadCount() {
+        return filesToDownload.size() - currentDownload;
+    }
+
+    public int finishedDownloadCount() {
+        return currentDownload;
     }
 
     public class CanceledException extends Exception {}

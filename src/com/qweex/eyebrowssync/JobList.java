@@ -1,7 +1,6 @@
 package com.qweex.eyebrowssync;
 
-import android.app.AlertDialog;
-import android.app.ListActivity;
+import android.app.*;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -9,14 +8,17 @@ import android.database.Cursor;
 import android.os.Bundle;
 import android.view.*;
 import android.widget.*;
+import android.support.v4.app.NotificationCompat;
 
 import java.util.HashMap;
+import java.util.Set;
 
 public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickListener {
     AttachedRelativeLayout rowClicked;
     String nameOfClicked() { return ((TextView)rowClicked.findViewById(R.id.title)).getText().toString(); }
 
     static HashMap<String, Syncer> syncers;
+    NotificationSupervisor supervisor;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -33,6 +35,7 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
 
         if(syncers == null)
             syncers = new HashMap<String, Syncer>();
+        supervisor = new NotificationSupervisor(this);
     }
 
     @Override
@@ -81,7 +84,7 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
                     syncers.remove(nameOfClicked());
                 }
 
-                Syncer newSyncer = new Syncer(this, nameOfClicked(), item.getItemId()==R.id.simulate);
+                Syncer newSyncer = new Syncer(this, nameOfClicked(), item.getItemId()==R.id.simulate, supervisor);
                 rowClicked.attachTo(newSyncer);
                 newSyncer.execute();
                 syncers.put(nameOfClicked(), newSyncer);
@@ -170,5 +173,85 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
             else
                 Syncer.setStatusTime(JobList.this, (AttachedRelativeLayout) v, time);
         }
+    }
+
+
+    public class NotificationSupervisor {
+        NotificationManager manager;
+        Activity activity;
+        NotificationCompat.Builder mBuilder;
+        final int NOTIFICATION_ID = 1337;
+
+        public NotificationSupervisor(Activity activity) {
+            manager = (NotificationManager) activity.getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+            this.activity = activity;
+            Intent intent = activity.getIntent();
+            PendingIntent pIntent = PendingIntent.getActivity(activity, 0, intent, 0);
+            mBuilder = new NotificationCompat.Builder(activity)
+                    .setSmallIcon(android.R.drawable.stat_sys_download)
+                    .setContentIntent(pIntent)
+                    .setOngoing(true);
+        }
+
+        public void update() {
+            int activeSyncers = 0, filesTotal = 0, filesDone = 0;
+            Syncer.PHASE targetPhase = Syncer.PHASE.FINISHED; //DOWNLOADING, PREPARING/COUNTING, DELETING/ERROR/FINISHED
+            Set<String> keys = syncers.keySet();
+            for(String key : keys) {
+                Syncer syncer = syncers.get(key);
+                if(syncer == null)
+                    continue;
+                activeSyncers++;
+                filesTotal += syncer.totalDownloadCount();
+                filesDone += syncer.finishedDownloadCount();
+                if(targetPhase== Syncer.PHASE.DOWNLOADING)
+                    continue;
+                if(syncer.getPhase() == Syncer.PHASE.DOWNLOADING)
+                    targetPhase = syncer.getPhase();
+                else if((targetPhase==Syncer.PHASE.DELETING || targetPhase==Syncer.PHASE.ERROR || targetPhase==Syncer.PHASE.FINISHED) &&
+                        (syncer.getPhase()==Syncer.PHASE.PREPARING || syncer.getPhase()==Syncer.PHASE.COUNTING))
+                    targetPhase = syncer.getPhase();
+                else if((targetPhase==Syncer.PHASE.DELETING || targetPhase==Syncer.PHASE.ERROR || targetPhase==Syncer.PHASE.FINISHED) &&
+                        (syncer.getPhase()==Syncer.PHASE.DELETING || syncer.getPhase()==Syncer.PHASE.ERROR || syncer.getPhase()==Syncer.PHASE.FINISHED))
+                    targetPhase = syncer.getPhase();
+            }
+
+            if(targetPhase==Syncer.PHASE.FINISHED || targetPhase==Syncer.PHASE.ERROR)
+            {
+                PendingIntent pIntent = PendingIntent.getActivity(activity, 0, activity.getIntent(), 0);
+                mBuilder = new NotificationCompat.Builder(activity)
+                        .setContentTitle("Finished Syncing")
+                        .setProgress(0, 0, false)
+                        .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                        .setOngoing(false)
+                        .setContentIntent(pIntent);
+                if(targetPhase==Syncer.PHASE.ERROR)
+                    mBuilder.setContentInfo("Some jobs had errors");
+                else
+                    mBuilder.setContentInfo(null);
+                manager.notify(NOTIFICATION_ID, mBuilder.build());
+                return;
+            }
+
+            mBuilder.setContentTitle("Syncing " + activeSyncers + " job" + (activeSyncers>1 ? "s" : ""));
+
+            switch(targetPhase) {
+                case DOWNLOADING:
+                    mBuilder.setContentInfo("Downloading " + (filesTotal-filesDone) + " files")
+                            .setProgress(filesDone, filesTotal, false);
+                    break;
+                case PREPARING:
+                case COUNTING:
+                    mBuilder.setContentInfo("Preparing...")
+                            .setProgress(0, 1, true);
+                    break;
+                case DELETING:
+                    mBuilder.setContentInfo("Finishing...")
+                            .setProgress(0, 1, true);
+            }
+
+            manager.notify(NOTIFICATION_ID, mBuilder.build());
+        }
+
     }
 }
