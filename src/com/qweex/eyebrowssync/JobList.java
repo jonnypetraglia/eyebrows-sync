@@ -108,7 +108,15 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
                         })
                         .show();
                 break;
-            case R.id.log:
+            case R.id.status:
+                if(syncers.containsKey(nameOfClicked())) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            syncers.get(nameOfClicked()).getStatusWindow().show();
+                        }
+                    });
+                }
                 break;
             // Running
             case R.id.cancel:
@@ -195,7 +203,7 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
 
         public void update() {
             int activeSyncers = 0, filesTotal = 0, filesDone = 0;
-            Syncer.PHASE targetPhase = Syncer.PHASE.FINISHED; //DOWNLOADING, PREPARING/COUNTING, DELETING/ERROR/FINISHED
+            Syncer.PHASE targetPhase = Syncer.PHASE.CANCELED; //DOWNLOADING, PREPARING/COUNTING, DELETING/ERROR/FINISHED
             Set<String> keys = syncers.keySet();
             for(String key : keys) {
                 Syncer syncer = syncers.get(key);
@@ -208,7 +216,7 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
                     continue;
                 if(syncer.getPhase() == Syncer.PHASE.DOWNLOADING)
                     targetPhase = syncer.getPhase();
-                else if((targetPhase==Syncer.PHASE.DELETING || targetPhase==Syncer.PHASE.ERROR || targetPhase==Syncer.PHASE.FINISHED) &&
+                else if((targetPhase==Syncer.PHASE.DELETING || targetPhase==Syncer.PHASE.ERROR || targetPhase==Syncer.PHASE.FINISHED || targetPhase==Syncer.PHASE.CANCELED) &&
                         (syncer.getPhase()==Syncer.PHASE.PREPARING || syncer.getPhase()==Syncer.PHASE.COUNTING))
                     targetPhase = syncer.getPhase();
                 else if((targetPhase==Syncer.PHASE.DELETING || targetPhase==Syncer.PHASE.ERROR || targetPhase==Syncer.PHASE.FINISHED) &&
@@ -216,7 +224,7 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
                     targetPhase = syncer.getPhase();
             }
 
-            if(targetPhase==Syncer.PHASE.FINISHED || targetPhase==Syncer.PHASE.ERROR)
+            if(targetPhase==Syncer.PHASE.FINISHED || targetPhase==Syncer.PHASE.ERROR || targetPhase==Syncer.PHASE.CANCELED)
             {
                 PendingIntent pIntent = PendingIntent.getActivity(activity, 0, activity.getIntent(), 0);
                 mBuilder = new NotificationCompat.Builder(activity)
@@ -247,6 +255,9 @@ public class JobList extends ListActivity implements PopupMenu.OnMenuItemClickLi
                     break;
                 case DELETING:
                     mBuilder.setContentInfo("Finishing...")
+                            .setProgress(0, 1, true);
+                case CANCELED:
+                    mBuilder.setContentInfo("Canceling...")
                             .setProgress(0, 1, true);
             }
 

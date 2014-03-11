@@ -5,8 +5,8 @@
           android:title="@string/run"/>
     <item android:id="@+id/simulate"
           android:title="@string/simulate"/>
-    <item android:id="@+id/log"
-          android:title="@string/log"/>
+    <item android:id="@+id/status"
+          android:title="@string/status"/>
     <item android:id="@+id/edit"
           android:title="@string/edit"/>
     <item android:id="@+id/delete"
