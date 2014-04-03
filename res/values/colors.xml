@@ -5,4 +5,7 @@
     <color name="status_running">#99cc00</color>
     <color name="status_error">#cc0000</color>
     <color name="qweex">#99cc00</color>
+    <color name="v3_menu_pressed">#777777</color>
+    <color name="v3_menu_default">#555555</color>
+    <color name="v3_menu_disabled">#333333</color>
 </resources>

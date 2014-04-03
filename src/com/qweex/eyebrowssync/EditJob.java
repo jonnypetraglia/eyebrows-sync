@@ -7,6 +7,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import com.qweex.eyebrowssync.JobList.v11;
 import com.qweex.utils.DirectoryChooserDialog;
 
 public class EditJob extends Activity implements DirectoryChooserDialog.OnDirectoryChosen {
@@ -69,8 +70,8 @@ public class EditJob extends Activity implements DirectoryChooserDialog.OnDirect
             else
             {
                 if(!nameWas.equals(newName)) {
-                    JobList.syncers.put(newName, JobList.syncers.get(nameWas));
-                    JobList.syncers.remove(nameWas);
+                    v11.syncers.put(newName, v11.syncers.get(nameWas));
+                    v11.syncers.remove(nameWas);
                 }
                 SavedJobs.update(EditJob.this, nameWas, b);
             }

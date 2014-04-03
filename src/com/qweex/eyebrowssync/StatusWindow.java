@@ -7,6 +7,7 @@ import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.*;
 
 import java.io.File;
@@ -28,6 +29,12 @@ public class StatusWindow extends Dialog {
         lv = (ListView) findViewById(android.R.id.list);
         footer = (TextView) findViewById(R.id.footer);
         lv.setAdapter(new Adapter(getContext(), R.layout.status_item));
+
+
+        WindowManager.LayoutParams params = getWindow().getAttributes();
+        params.height = WindowManager.LayoutParams.FILL_PARENT;
+        params.width  = WindowManager.LayoutParams.FILL_PARENT;
+        getWindow().setAttributes(params);
     }
 
     public void refreshAdapter() {

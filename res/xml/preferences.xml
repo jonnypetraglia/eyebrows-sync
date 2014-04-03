@@ -24,14 +24,14 @@
                         android:title="@string/key_size"
                         android:entries="@array/key_sizes" />
 
-        <com.lukehorvat.NumberPickerDialogPreference android:key="salt_length"
+        <com.qweex.NumberPickerDialogPreference android:key="salt_length"
                                                      android:defaultValue="20"
                                                      android:dialogMessage="Please select the salt length"
                                                      android:max="1000"
                                                      android:title="@string/salt_length"
                                                      custom:min="1" />
 
-        <com.lukehorvat.NumberPickerDialogPreference android:key="iteration_count"
+        <com.qweex.NumberPickerDialogPreference android:key="iteration_count"
                                                      android:defaultValue="1000"
                                                      android:dialogMessage="Please select number of iterations"
                                                      android:max="100000"

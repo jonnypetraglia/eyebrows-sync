@@ -1,4 +1,4 @@
-package com.lukehorvat;
+package com.qweex;
 
 import android.content.Context;
 import android.content.res.TypedArray;
@@ -6,15 +6,19 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.preference.DialogPreference;
 import android.util.AttributeSet;
+import android.util.TypedValue;
 import android.view.View;
-import android.widget.NumberPicker;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import com.qweex.eyebrowssync.R;
 
 /**
  * A {@link DialogPreference} that provides a user with the means to select an integer from a {@link NumberPicker}, and persist it.
+ * Forked from the original version by lukehorvat to include a widget for < HONEYCOMB devices
  *
- * @author lukehorvat
+ * @author notbryant
  *
  */
 public class NumberPickerDialogPreference extends DialogPreference
@@ -26,7 +30,7 @@ public class NumberPickerDialogPreference extends DialogPreference
     private int mMinValue;
     private int mMaxValue;
     private int mValue;
-    private NumberPicker mNumberPicker;
+    private View mNumberPicker;
 
     public NumberPickerDialogPreference(Context context)
     {
@@ -76,10 +80,22 @@ public class NumberPickerDialogPreference extends DialogPreference
         TextView dialogMessageText = (TextView) view.findViewById(R.id.text_dialog_message);
         dialogMessageText.setText(getDialogMessage());
 
-        mNumberPicker = (NumberPicker) view.findViewById(R.id.number_picker);
-        mNumberPicker.setMinValue(mMinValue);
-        mNumberPicker.setMaxValue(mMaxValue);
-        mNumberPicker.setValue(mValue);
+        if(android.os.Build.VERSION.SDK_INT >= 11) {
+            mNumberPicker = new android.widget.NumberPicker(view.getContext());
+            ((android.widget.NumberPicker)mNumberPicker).setMinValue(mMinValue);
+            ((android.widget.NumberPicker)mNumberPicker).setMaxValue(mMaxValue);
+            ((android.widget.NumberPicker)mNumberPicker).setValue(mValue);
+        } else {
+            mNumberPicker = new NumberPicker(view.getContext());
+            ((NumberPicker)mNumberPicker).setMinValue(mMinValue);
+            ((NumberPicker)mNumberPicker).setMaxValue(mMaxValue);
+            ((NumberPicker)mNumberPicker).setValue(mValue);
+        }
+        float px = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 6, view.getContext().getResources().getDisplayMetrics());
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, (int)px, 0, (int)px);
+        mNumberPicker.setLayoutParams(lp);
+        ((LinearLayout)view).addView(mNumberPicker);
     }
 
     public int getMinValue()
@@ -129,7 +145,11 @@ public class NumberPickerDialogPreference extends DialogPreference
 // when the user selects "OK", persist the new value
         if (positiveResult)
         {
-            int numberPickerValue = mNumberPicker.getValue();
+            int numberPickerValue;
+            if(android.os.Build.VERSION.SDK_INT >= 11)
+                numberPickerValue = ((android.widget.NumberPicker)mNumberPicker).getValue();
+            else
+                numberPickerValue = ((NumberPicker)mNumberPicker).getValue();
             if (callChangeListener(numberPickerValue))
             {
                 setValue(numberPickerValue);
@@ -217,5 +237,67 @@ public class NumberPickerDialogPreference extends DialogPreference
                 return new SavedState[size];
             }
         };
+    }
+
+
+
+    public class NumberPicker extends LinearLayout {
+
+        int counter = 0, min, max;
+        Button add;
+        Button sub;
+        TextView display;
+
+        public NumberPicker(Context context) {
+            super(context);
+            init();
+        }
+
+        public NumberPicker(Context context, AttributeSet attrs) {
+            super(context, attrs);
+            init();
+        }
+
+        private void init() {
+            super.setOrientation(LinearLayout.VERTICAL);
+            add = new Button(getContext());
+            sub = new Button(getContext());
+            display = new TextView(getContext());
+
+            this.addView(add);
+            this.addView(display);
+            this.addView(sub);
+
+
+            add.setOnClickListener(new View.OnClickListener() {
+
+                public void onClick(View v) {
+                    counter++;
+                    update();
+                }
+            });
+
+            sub.setOnClickListener(new View.OnClickListener() {
+
+                public void onClick(View v) {
+                    counter--;
+                    update();
+                }
+            });
+
+            //TODO: Button Drawables
+        }
+
+        private void update() {
+            display.setText( "" + counter);
+        }
+
+        public void setMinValue(int m) {min = m;}
+        public void setMaxValue(int m) {max = m;}
+        public void setValue(int m) {
+            counter = m;
+            update();
+        }
+        public int getValue() { return counter; }
     }
 }

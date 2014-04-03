@@ -42,13 +42,13 @@ public class Syncer extends AsyncTask<String, Long, Exception> {
     int bouncingIndex = 0;
     int bouncingRate = 4; //Higher == Slower
     boolean onlySimulate;
-    JobList.NotificationSupervisor supervisor;
+    NotificationSupervisor supervisor;
     int dudeDontFreakTheSupervisorOut = 0;
     StatusWindow statusWindow;
     boolean updateStatusAdapter = false;
 
     // Constructor
-    public Syncer(Context context, String name, boolean simulate, JobList.NotificationSupervisor s) {
+    public Syncer(Context context, String name, boolean simulate, NotificationSupervisor s) {
         server = SavedJobs.get(context, name);
         filesToDownload = new ArrayList<Pair<String, Long>>();
         filesToDelete = new ArrayList<String>();
