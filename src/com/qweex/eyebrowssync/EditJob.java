@@ -2,6 +2,7 @@ package com.qweex.eyebrowssync;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -27,6 +28,14 @@ public class EditJob extends Activity implements DirectoryChooserDialog.OnDirect
                 ((EditText)findViewById(R.id.port)).setText(Integer.toString(b.getInt("port")));
                 ((CheckBox)findViewById(R.id.ssl)).setChecked(b.getBoolean("ssl"));
                 //auth (username, password)
+
+                String[] auth = new String(Base64.decode(b.getString("auth"), Base64.DEFAULT)).split(":");
+                String username = auth[0], password = "";
+                if(auth.length>1)
+                    password = auth[1];
+                ((EditText)findViewById(R.id.username)).setText(username);
+                ((EditText)findViewById(R.id.password)).setText(password);
+
                 ((EditText)findViewById(R.id.foreign_path)).setText(b.getString("foreign_path"));
                 ((Button)findViewById(R.id.local_path)).setText(b.getString("local_path"));
                 ((EditText)findViewById(R.id.mask)).setText(b.getString("mask"));
@@ -60,6 +69,10 @@ public class EditJob extends Activity implements DirectoryChooserDialog.OnDirect
             b.putString("host", ((EditText)findViewById(R.id.host)).getText().toString());
             b.putInt("port", Integer.parseInt(((EditText)findViewById(R.id.port)).getText().toString()));
             b.putBoolean("ssl", ((CheckBox)findViewById(R.id.ssl)).isChecked());
+
+            String auth = ((EditText)findViewById(R.id.username)).getText().toString() + ":" + ((EditText)findViewById(R.id.password)).getText().toString();
+            b.putString("auth", Base64.encodeToString(auth.getBytes(), Base64.DEFAULT));
+
             //auth (username, password)
             b.putString("foreign_path", ((EditText)findViewById(R.id.foreign_path)).getText().toString());
             b.putString("local_path", ((Button)findViewById(R.id.local_path)).getText().toString());
