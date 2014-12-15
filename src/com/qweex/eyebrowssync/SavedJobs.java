@@ -19,6 +19,7 @@ import java.security.NoSuchAlgorithmException;
 
 /********************* DB stuff for getting/setting saved servers *********************/
 public class SavedJobs {
+    private static final int DATABASE_VERSION = 2;
     /** The file containing the databases. */
     private static final String DATABASE= "EyebrowsSync.db";
     /** One of the tables in the SQL database. */
@@ -33,7 +34,7 @@ public class SavedJobs {
      * */
     public static void initialize(Context context)
     {
-        databaseOpenHelper = new DatabaseOpenHelper(context, DATABASE, null, 1);
+        databaseOpenHelper = new DatabaseOpenHelper(context, DATABASE, null, DATABASE_VERSION);
         Log.d("EyebrowsSync", "Initialized DB; " + getAll().getCount());
     }
 

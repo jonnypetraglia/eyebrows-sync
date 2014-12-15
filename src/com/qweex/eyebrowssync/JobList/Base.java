@@ -35,6 +35,7 @@ public abstract class Base extends ListActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         SavedJobs.initialize(this);
+        FileModifiedHelper.initialize(this);
 
         getListView().setBackgroundColor(getResources().getColor(android.R.color.white));
         ((View)getListView().getParent()).setBackgroundColor(getResources().getColor(android.R.color.white));

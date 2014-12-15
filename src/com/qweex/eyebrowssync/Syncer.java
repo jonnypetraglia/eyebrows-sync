@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -67,7 +68,8 @@ public class Syncer extends AsyncTask<String, Long, Exception> {
     // Update the notification & button
     @Override
     protected void onProgressUpdate(Long... currentFileSize) {
-        Log.d("EyebrowsSync", "CurrentFileSize: " + currentFileSize.length);
+        if(currentFileSize.length>0)
+            Log.d("EyebrowsSync", "CurrentFileSize: " + currentFileSize[0]);
         if(updateStatusAdapter) // Update the adapter if we have just recently retrieved the Downloads
             statusWindow.refreshAdapter();
         if(++dudeDontFreakTheSupervisorOut>7)
@@ -114,8 +116,6 @@ public class Syncer extends AsyncTask<String, Long, Exception> {
             tallyFolder("");
             updateStatusAdapter = true;
             publishProgress();
-            if(onlySimulate)
-                return null;
 
 
             //2. Do the actual downloading
@@ -123,18 +123,21 @@ public class Syncer extends AsyncTask<String, Long, Exception> {
             File localSubdir = new File(server.getString("local_path"));
             for(currentDownload = 0; currentDownload < filesToDownload.size(); currentDownload++) {
                 Pair<String, Long> foreignFile = filesToDownload.get(currentDownload);
-                downloadFile(foreignFile);
+                Log.d("EyebrowsSync", "Current Download: " + currentDownload);
+                if(!onlySimulate)
+                    downloadFile(foreignFile);
             }
 
             //3. Do the deleting
             phase = PHASE.DELETING;
             for(currentDelete = 0; currentDelete < filesToDelete.size(); currentDelete++) {
-                String f = filesToDelete.get(currentDelete);
-                File localTarget = new File(localSubdir, f);
-                boolean r = DeleteRecursive(localTarget);
-                if(localTarget.exists() && r)
-                    MediaScannerConnection.scanFile(context, new String[]{localTarget.getPath()}, null, null);
-                Log.d("EyebrowsSync", "---Deleting? " + r);
+                File localTarget = new File(localSubdir, filesToDelete.get(currentDelete));
+                if(!onlySimulate) {
+                    boolean r = DeleteRecursive(localTarget);
+                    if(localTarget.exists() && r)
+                        MediaScannerConnection.scanFile(context, new String[]{localTarget.getPath()}, null, null);
+                }
+                Log.d("EyebrowsSync", "---Deleting " + localTarget.getAbsolutePath() + " ? " + !localTarget.exists());
             }
 
         } catch (EyebrowsError eyebrowsError) {
@@ -204,6 +207,7 @@ public class Syncer extends AsyncTask<String, Long, Exception> {
         //2. Make JSON request & get file list
         JSONArray foreignFilesJSON;
         String path_to_load = getServerPath(subfolder);
+        Log.d("EyebrowsSync", "Loading path: " + path_to_load);
         if(server.getBoolean("ssl"))
             foreignFilesJSON = (JSONArray) (new JSONDownloader().new https()).readJsonFromUrl(server.getString("auth"), path_to_load, null);
         else
@@ -212,6 +216,7 @@ public class Syncer extends AsyncTask<String, Long, Exception> {
         //3. foreach file in foreign_files
         for(int i=0; i<foreignFilesJSON.length(); i++) {
             JSONObject foreignFile = foreignFilesJSON.getJSONObject(i);
+
             if(foreignFile.getString("icon").equals("folder")) {
                 foreignDirs.add(foreignFile.getString("name"));
                 localFiles.remove(foreignFile.getString("name"));
@@ -224,11 +229,14 @@ public class Syncer extends AsyncTask<String, Long, Exception> {
             }
 
             if(localFiles.contains(foreignFile.getString("name"))) {
-                //File localFile = new File(localSubdir, foreignFile.getString("name"));
+                FileModifiedHelper fileModified = new FileModifiedHelper(localSubdir.getAbsolutePath(), foreignFile.getString("name"));
+
                 Log.i("EyebrowsSync", "Examining: " + foreignFile.getString("name"));
-                //Log.d("EyebrowsSync", foreignFile.getLong("mtime") + " vs " + localFile.lastModified());
-                Log.d("EyebrowsSync", foreignFile.getLong("mtime") + " vs " + server.getLong("last_updated")/1000);
-                if(server.getLong("last_updated")/1000 < foreignFile.getLong("mtime"))
+                Log.d("EyebrowsSync", foreignFile.getLong("mtime") + " vs " + fileModified.get());
+                //Log.d("EyebrowsSync", foreignFile.getLong("mtime") + " vs " + server.getLong("last_updated")/1000);
+                //if(server.getLong("last_updated")/1000 < foreignFile.getLong("mtime"))
+                Log.d("EyebrowsSync", "Got: " + fileModified.get());
+                if(fileModified.get() < foreignFile.getLong("mtime"))
                     filesToDownload.add(Pair.create(joinAppend(subfolder, foreignFile.getString("name")), foreignFile.getLong("size")));
                 localFiles.remove(foreignFile.getString("name"));
             } else
@@ -256,7 +264,7 @@ public class Syncer extends AsyncTask<String, Long, Exception> {
 
         HttpURLConnection urlConnection = (HttpURLConnection) new URL(url).openConnection();
         urlConnection.setRequestMethod("GET");
-        urlConnection.setRequestProperty("Authentication", "Basic " + server.getString("auth"));
+        urlConnection.setRequestProperty("Authorization", "Basic " + server.getString("auth"));
         urlConnection.setUseCaches(false);
         urlConnection.setDoOutput(false);
         urlConnection.connect();
@@ -285,6 +293,9 @@ public class Syncer extends AsyncTask<String, Long, Exception> {
             }
             fileOutput.write(buffer, 0, bufferLength);
         }
+        long time = Calendar.getInstance().getTime().getTime();
+        FileModifiedHelper fileModified = new FileModifiedHelper(localTarget);
+        Log.d("EyebrowsSync", "Set?: " + fileModified.set(time));
         MediaScannerConnection.scanFile(context, new String[]{localTarget.getPath()}, null, null);
         fileOutput.close();
     }
@@ -305,10 +316,11 @@ public class Syncer extends AsyncTask<String, Long, Exception> {
     String getServerPath(String subfolder)
     {
         String thing;
+        Log.d("EyebrowsSync", "foreieng_path: " + server.getString("foreign_path", "/"));
         if(subfolder.length()==0)
-            thing = Uri.encode(server.getString("foreign_path"));
+            thing = Uri.encode(server.getString("foreign_path"), "/");
         else
-            thing = Uri.encode(TextUtils.join("/", new String[]{server.getString("foreign_path"), subfolder}));
+            thing = Uri.encode(TextUtils.join("/", new String[]{server.getString("foreign_path"), subfolder}), "/");
         return (server.getBoolean("ssl") ? "https://" : "http://") +
                 server.getString("host") + ":" + server.getInt("port") + "/" + thing;
     }
@@ -346,7 +358,7 @@ public class Syncer extends AsyncTask<String, Long, Exception> {
 
     // Getter
     public int totalDownloadCount() {
-        return filesToDownload.size() - currentDownload;
+        return filesToDownload.size();
     }
 
     // Getter
