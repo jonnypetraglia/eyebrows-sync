@@ -78,8 +78,21 @@ public class StatusWindow extends Dialog {
             //header
             if(position == 0) {
                 name.setText("Scanning for changes...");
-                name.setTextColor(getContext().getResources().getColor(R.color.status_inactive));
+                name.setTextColor(COLOR_INACTIVE);
                 progress.setVisibility(View.GONE);
+                imageView.setVisibility(View.INVISIBLE);
+                return convertView;
+            }
+            //footer
+            if(position == getCount()-1) {
+                name.setText("Finished sync");
+                if(position == syncer.currentDownload) {
+                    name.setTextColor(COLOR_RUNNING);
+                } else {
+                    name.setTextColor(COLOR_INACTIVE);
+                }
+                progress.setVisibility(View.GONE);
+                imageView.setVisibility(View.INVISIBLE);
                 return convertView;
             }
             position--;
@@ -88,6 +101,7 @@ public class StatusWindow extends Dialog {
                 Pair<String, Long> download = syncer.getDownloads().get(position);
                 String filename = new File("/" + download.first).getName();
                 name.setText(filename);
+                imageView.setVisibility(View.VISIBLE);
                 imageView.setImageResource(android.R.drawable.stat_sys_download_done);
                 if(position == syncer.currentDownload)
                 {
@@ -144,7 +158,7 @@ public class StatusWindow extends Dialog {
         public int getCount() {
             if(syncer.getPhase()== Syncer.PHASE.PREPARING || syncer.getPhase()==Syncer.PHASE.COUNTING)
                 return 1;
-            return 1 + syncer.getDownloads().size() + syncer.getDeletes().size();
+            return 1 + syncer.getDownloads().size() + syncer.getDeletes().size() + 1;
         }
 
     }
